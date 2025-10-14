@@ -1,12 +1,15 @@
-import { useState } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
+import { useEffect, useState, useRef } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useDebounce } from '../../hooks/useDebounce';
+import { fetchNotes, type FetchNotesResponse } from '../../services/noteService';
 import SearchBox from '../SearchBox/SearchBox';
 import Pagination from '../Pagination/Pagination';
 import NoteList from '../NoteList/NoteList';
 import Modal from '../Modal/Modal';
 import NoteForm from '../NoteForm/NoteForm';
 import css from './App.module.css';
+import Loader from '../Loader/Loader';
+import ErrorMessage from '../ErrorMessage/ErrorMessage';
 
 export default function App() {
   const [page, setPage] = useState<number>(1);
@@ -15,9 +18,25 @@ export default function App() {
   const debouncedSearch = useDebounce(search, 500);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const [totalPages, setTotalPages] = useState<number>(1); 
-
   const queryClient = useQueryClient();
+
+  const previousDataRef = useRef<FetchNotesResponse | undefined>(undefined);
+
+  const { data, isLoading, isError } = useQuery<FetchNotesResponse, Error>({
+    queryKey: ['notes', { page, perPage, search: debouncedSearch }],
+    queryFn: () => fetchNotes({ page, perPage, search: debouncedSearch }),
+    staleTime: 5_000,
+    placeholderData: previousDataRef.current,    
+  });
+
+  useEffect(() => {
+    if (data) {
+      previousDataRef.current = data;
+    }
+  }, [data]);
+
+  const notes = data?.notes ?? [];
+  const totalPages = data?.totalPages ?? 1;
 
   const handleOpenModal = () => setIsModalOpen(true);
   const handleCloseModal = () => setIsModalOpen(false);
@@ -32,12 +51,9 @@ export default function App() {
             setPage(1);
           }}
         />
+
         {totalPages > 1 && (
-          <Pagination
-            page={page}
-            setPage={setPage}
-            totalPages={totalPages}
-          />
+          <Pagination page={page} setPage={setPage} totalPages={totalPages} />
         )}
 
         <button className={css.button} onClick={handleOpenModal}>
@@ -46,12 +62,11 @@ export default function App() {
       </header>
 
       <main>
-        <NoteList
-          page={page}
-          perPage={perPage}
-          search={debouncedSearch}
-          onTotalPagesChange={setTotalPages}
-        />
+        {isLoading && <Loader />}
+        {isError && < ErrorMessage  message="Error loading notes"/>}
+        {!isLoading && !isError && notes.length > 0 && (
+          <NoteList notes={notes} isLoading={isLoading} isError={isError} />
+        )}
       </main>
 
       {isModalOpen && (
@@ -59,7 +74,7 @@ export default function App() {
           <NoteForm
             onSuccess={() => {
               queryClient.invalidateQueries({
-                queryKey: ['notes', { page, perPage, search }],
+                queryKey: ['notes', { page, perPage, search: debouncedSearch }],
               });
               handleCloseModal();
             }}

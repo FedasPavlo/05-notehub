@@ -5,8 +5,8 @@ import { createNote, type CreateNoteParams } from '../../services/noteService';
 import css from './NoteForm.module.css';
 
 interface NoteFormProps {
-  onSuccess?: () => void;
-  onCancel?: () => void;
+  onSuccess: () => void;
+  onCancel: () => void;
 }
 
 const validationSchema = Yup.object({
@@ -24,7 +24,7 @@ export default function NoteForm({ onSuccess, onCancel }: NoteFormProps) {
     mutationFn: (payload: CreateNoteParams) => createNote(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notes'] });
-      onSuccess?.();
+      onSuccess(); 
     },
   });
 
@@ -32,9 +32,12 @@ export default function NoteForm({ onSuccess, onCancel }: NoteFormProps) {
     <Formik<CreateNoteParams>
       initialValues={{ title: '', content: '', tag: 'Todo' }}
       validationSchema={validationSchema}
-      onSubmit={(values, { setSubmitting }) => {
-        mutation.mutate(values);
-        setSubmitting(false);
+      onSubmit={async (values, { setSubmitting }) => {
+        try {
+          await mutation.mutateAsync(values);
+        } finally {
+          setSubmitting(false);
+        }
       }}
     >
       {({ isSubmitting }) => (
@@ -64,7 +67,9 @@ export default function NoteForm({ onSuccess, onCancel }: NoteFormProps) {
           </div>
 
           <div className={css.actions}>
-            <button type="button" className={css.cancelButton} onClick={onCancel}>Cancel</button>
+            <button type="button" className={css.cancelButton} onClick={onCancel}>
+              Cancel
+            </button>
             <button type="submit" className={css.submitButton} disabled={isSubmitting}>
               Create note
             </button>
