@@ -19,20 +19,19 @@ export default function App() {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const queryClient = useQueryClient();
-
   const previousDataRef = useRef<FetchNotesResponse | undefined>(undefined);
 
+  const queryKey = ['notes', page, perPage, debouncedSearch] as const;
+
   const { data, isLoading, isError } = useQuery<FetchNotesResponse, Error>({
-    queryKey: ['notes', { page, perPage, search: debouncedSearch }],
+    queryKey,
     queryFn: () => fetchNotes({ page, perPage, search: debouncedSearch }),
     staleTime: 5_000,
-    placeholderData: previousDataRef.current,    
+    placeholderData: () => previousDataRef.current,
   });
 
   useEffect(() => {
-    if (data) {
-      previousDataRef.current = data;
-    }
+    if (data) previousDataRef.current = data;
   }, [data]);
 
   const notes = data?.notes ?? [];
@@ -63,23 +62,18 @@ export default function App() {
 
       <main>
         {isLoading && <Loader />}
-        {isError && < ErrorMessage  message="Error loading notes"/>}
+        {isError && <ErrorMessage message="Error loading notes" />}
         {!isLoading && !isError && notes.length > 0 && (
-          <NoteList notes={notes} isLoading={isLoading} isError={isError} />
+          <NoteList notes={notes} />
         )}
       </main>
 
       {isModalOpen && (
         <Modal onClose={handleCloseModal}>
-          <NoteForm
-            onSuccess={() => {
-              queryClient.invalidateQueries({
-                queryKey: ['notes', { page, perPage, search: debouncedSearch }],
-              });
-              handleCloseModal();
-            }}
-            onCancel={handleCloseModal}
-          />
+          <NoteForm onClose={() => {
+            queryClient.invalidateQueries({ queryKey: ['notes'] });
+            handleCloseModal();
+          }} />
         </Modal>
       )}
     </div>

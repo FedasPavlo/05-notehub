@@ -5,8 +5,7 @@ import { createNote, type CreateNoteParams } from '../../services/noteService';
 import css from './NoteForm.module.css';
 
 interface NoteFormProps {
-  onSuccess: () => void;
-  onCancel: () => void;
+  onClose: () => void;
 }
 
 const validationSchema = Yup.object({
@@ -17,14 +16,14 @@ const validationSchema = Yup.object({
     .required('Required'),
 });
 
-export default function NoteForm({ onSuccess, onCancel }: NoteFormProps) {
+export default function NoteForm({ onClose }: NoteFormProps) {
   const queryClient = useQueryClient();
 
   const mutation = useMutation({
     mutationFn: (payload: CreateNoteParams) => createNote(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notes'] });
-      onSuccess(); 
+      onClose();
     },
   });
 
@@ -67,7 +66,7 @@ export default function NoteForm({ onSuccess, onCancel }: NoteFormProps) {
           </div>
 
           <div className={css.actions}>
-            <button type="button" className={css.cancelButton} onClick={onCancel}>
+            <button type="button" className={css.cancelButton} onClick={onClose}>
               Cancel
             </button>
             <button type="submit" className={css.submitButton} disabled={isSubmitting}>
